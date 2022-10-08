@@ -31,6 +31,26 @@ main()
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
+    if(SCHED==0)
+    {
+      printf("RR scehduling used\n");
+    }
+    else if(SCHED==1)
+    {
+      printf("FCFS scehduling used\n");
+    }
+    else if(SCHED==2)
+    {
+      printf("LBS scehduling used\n");
+    }
+    else if(SCHED==3)
+    {
+      printf("PBS scehduling used\n");
+    }
+    else if(SCHED==4)
+    {
+      printf("MLFQ scehduling used\n");
+    }
   } else {
     while(started == 0)
       ;

@@ -149,6 +149,7 @@ found:
   p->alarm_int=0;
   p->handler=0;
   p->nc_ticks=0;
+  p->c_time=ticks;
   p->backup=(struct trapframe*)kalloc();
   return p;
 }
@@ -460,16 +461,47 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+    uint64 min_ctime=__INT64_MAX__;
+    if(SCHED==1)
+    {
+      for(p = proc; p < &proc[NPROC]; p++)
+      {
+        acquire(&p->lock);
+        if(p->state==RUNNABLE)
+        {
+          if(p->c_time<min_ctime)
+          {
+            min_ctime=p->c_time;
+          }
+        }
+        release(&p->lock);
+      }
+    }
+
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
+        // Round robin handled mostly in interrupt
+        if(SCHED==0)
+        {
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+        }
+        // For FCFS scheduling
+        else if(SCHED==1)   
+        {
+          
+          if(p->c_time<=min_ctime)
+          {
+            p->state = RUNNING;
+            c->proc = p;
+            swtch(&c->context, &p->context);
+          }
+        }
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;

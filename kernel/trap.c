@@ -103,7 +103,19 @@ usertrap(void)
   {
     if(p!=0)
       alarm_int(p);
-    yield();
+    // if()
+    if(SCHED==0)
+      yield();
+    if(SCHED==1)
+    {
+      // printf("Reached HERE!!\n");
+      // yield();
+      acquire(&p->lock);
+      if((p!=0&&p->state!=RUNNING)||p==0)
+        yield();
+      release(&p->lock);
+
+    }
   }
   usertrapret();
 }

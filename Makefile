@@ -63,6 +63,31 @@ CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -I.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
+# SCHED==0 corresponds to RR scheduling
+ifndef SCHEDULER
+	SCHED_VAL=0   
+endif
+# SCHED==1 corresponds to FCFS scheduling
+ifeq ($(SCHEDULER),RR)
+	SCHED_VAL=0
+endif
+ifeq ($(SCHEDULER),FCFS)
+	SCHED_VAL=1
+endif
+# SCHED==2 corresponds to RR scheduling
+ifeq ($(SCHEDULER),LBS)
+	SCHED_VAL=2
+endif
+# SCHED==3 corresponds to RR scheduling
+ifeq ($(SCHEDULER),PBS)
+	SCHED_VAL=3
+endif
+# SCHED==4 corresponds to RR scheduling
+ifeq ($(SCHEDULER),MLFQ)
+	SCHED_VAL=4
+endif
+CFLAGS+= -D SCHED=$(SCHED_VAL)
+# echo SCHED_VAL
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
 CFLAGS += -fno-pie -no-pie

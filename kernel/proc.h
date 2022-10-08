@@ -108,5 +108,6 @@ struct proc {
   // void (*handler)();           // Pointer to the handler function
   uint64 handler;           // Pointer to the handler function
   uint64 nc_ticks; 
+  uint64 c_time;
   struct trapframe* backup;            // To reset state
 };
