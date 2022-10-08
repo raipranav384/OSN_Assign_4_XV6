@@ -146,6 +146,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->alarm_int=0;
+  p->handler=0;
+  p->nc_ticks=0;
+  p->backup=(struct trapframe*)kalloc();
   return p;
 }
 
@@ -169,6 +173,10 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->alarm_int=0;
+  p->handler=0;
+  p->nc_ticks=0;
+  kfree(p->backup);
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -681,3 +689,9 @@ procdump(void)
     printf("\n");
   }
 }
+
+// int 
+// sigalarm(int ticks,void (*handler)())
+// {
+  
+// }

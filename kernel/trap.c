@@ -29,6 +29,28 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+void alarm_int(struct proc *p)
+{
+  if (p==0||p->alarm_int==0)
+    return;
+  p->nc_ticks--;
+  if(p->nc_ticks==0)
+  {
+
+    // printf("num_ticks:%d::%d\n",p->nc_ticks,p->handler);
+    // w_sepc(p->handler);
+    /* 
+    * epc stored the program counter before the trap, now once it returns from trap,
+    * the handler will be executed in place of the previous intstruction at old pc
+    */ 
+    // p->trapframe->sp-=4;
+    // p->trapframe->sp=p->trapframe->epc;
+    // p->backup=p->trapframe->epc;
+    *(p->backup)=*(p->trapframe);
+    p->trapframe->epc=p->handler;
+    // p->nc_ticks=p->alarm_int;
+  }
+}
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -78,8 +100,10 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
+  {
+    alarm_int(p);
     yield();
-
+  }
   usertrapret();
 }
 
