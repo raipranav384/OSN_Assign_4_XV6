@@ -152,6 +152,9 @@ found:
   p->c_time=ticks;
   p->tickets=1;
   p->backup=(struct trapframe*)kalloc();
+  p->que_num=-1;
+  p->next=0;
+  p->r_time=0;
   return p;
 }
 
@@ -454,6 +457,32 @@ uint64 rand(uint64 seed)
   }
   return seed;
 }
+que* init_que()
+{
+  que* Q=kalloc();
+  Q->num_proc=0;
+  Q->head=0;
+  Q->tail=0;
+  return Q;
+}
+void push(que* Q, struct proc *p)
+{
+  if(Q->num_proc!=0)
+    Q->tail->next=p;
+  else
+    Q->head=p;
+  Q->tail=p;
+  Q->num_proc++;
+}
+struct proc* pop(que* Q)
+{
+  if(Q->num_proc==0)
+    return 0;
+  struct proc* tmp=Q->head;
+  Q->head=Q->head->next;
+  Q->num_proc--;
+  return tmp;
+}
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -466,85 +495,137 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
   c->proc = 0;
-  for(;;){
-    // Avoid deadlock by ensuring that devices can interrupt.
-    intr_on();
+  if(SCHED!=4)
+  {
+    for(;;){
+      // Avoid deadlock by ensuring that devices can interrupt.
+      intr_on();
 
-    uint64 min_ctime=__INT64_MAX__,total_tickets=0;
-    if(SCHED==1)
-    {
-      for(p = proc; p < &proc[NPROC]; p++)
+      uint64 min_ctime=__INT64_MAX__,total_tickets=0;
+      if(SCHED==1||SCHED==2)
       {
-        acquire(&p->lock);
-        if(p->state==RUNNABLE)
+        for(p = proc; p < &proc[NPROC]; p++)
         {
-          if(p->c_time<min_ctime)
+          acquire(&p->lock);
+          if(p->state==RUNNABLE)
           {
-            min_ctime=p->c_time;
+            total_tickets+=p->tickets;
+            if(p->c_time<min_ctime)
+            {
+              min_ctime=p->c_time;
+            }
           }
+          release(&p->lock);
         }
-        release(&p->lock);
       }
-    }
-    else if(SCHED==2)
-    {
-      for(p = proc; p < &proc[NPROC]; p++)
-      {
+      for(p = proc; p < &proc[NPROC]; p++) {
         acquire(&p->lock);
-        if(p->state==RUNNABLE)
-        {
-          total_tickets+=p->tickets;
-        }
-        release(&p->lock);
-      }
-    }
-
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        // Round robin handled mostly in interrupt
-        if(SCHED==0)
-        {
-          p->state = RUNNING;
-          c->proc = p;
-          swtch(&c->context, &p->context);
-        }
-        // For FCFS scheduling
-        else if(SCHED==1)   
-        {
-          
-          if(p->c_time<=min_ctime)
+        if(p->state == RUNNABLE) {
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          // Round robin handled mostly in interrupt
+          if(SCHED==0)
           {
             p->state = RUNNING;
             c->proc = p;
             swtch(&c->context, &p->context);
           }
-        }
-        else if(SCHED==2)
-        {
-          uint64 rnum=rand(ticks)%(total_tickets+1);
-          // printf("%d,%d\n",rnum,total_tickets);
-          if(rnum<=p->tickets)
+          // For FCFS scheduling
+          else if(SCHED==1)   
           {
-            p->state = RUNNING;
+            
+            if(p->c_time<=min_ctime)
+            {
+              p->state = RUNNING;
+              c->proc = p;
+              swtch(&c->context, &p->context);
+            }
+          }
+          else if(SCHED==2)
+          {
+            uint64 rnum=rand(ticks)%(total_tickets+1);
+            // printf("%d,%d\n",rnum,total_tickets);
+            if(rnum<=p->tickets)
+            {
+              p->state = RUNNING;
+              c->proc = p;
+              swtch(&c->context, &p->context);
+            }
+            else
+            {
+              total_tickets-=rnum;
+            }
+          }
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&p->lock);
+      }
+    }
+  }
+  else
+  {
+    que* Q0=init_que();
+    que* Q1=init_que();
+    que* Q2=init_que();
+    que* Q3=init_que();
+    que* Q4=init_que();
+    que* Qarr[]={Q0,Q1,Q2,Q3,Q4};
+    for(;;)
+    { 
+      // Avoid deadlock by ensuring that devices can interrupt.
+      intr_on();
+      for(int i=0;i<5;i++)
+      {
+        for(p = proc; p < &proc[NPROC]; p++) {
+          acquire(&p->lock);
+          if(p->state==RUNNABLE)
+          {
+            if(p->que_num==-1)
+            {
+              p->que_num=0;
+              // printf("reached here!, %d, que_num=%d\n",p->state,p->que_num);
+              // printf("num items in current que:%d\n",Qarr[p->que_num]->num_proc);
+              push(Qarr[p->que_num],p);
+            }
+            if(p->que_num<i)
+            {
+              i=p->que_num;
+            }
+          }
+          release(&p->lock);
+        }
+        while(Qarr[i]->num_proc>0)
+        {
+          struct proc* p=Qarr[i]->head;
+          acquire(&p->lock);
+          if(p->state==RUNNABLE)
+          {
+            p->state=RUNNING;
             c->proc = p;
             swtch(&c->context, &p->context);
+            c->proc=0;
           }
           else
           {
-            total_tickets-=rnum;
+            pop(Qarr[p->que_num]);
+            p->que_num=-1;
           }
+          if(p->state==RUNNABLE&&(p->r_time>1<<p->que_num))
+          {
+            pop(Qarr[p->que_num]);
+            if(p->que_num<4)
+              p->que_num++;
+            push(Qarr[p->que_num],p);
+            p->r_time=0;
+          }
+          release(&p->lock);
         }
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
       }
-      release(&p->lock);
+
     }
   }
 }

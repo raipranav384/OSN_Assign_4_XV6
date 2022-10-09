@@ -111,13 +111,13 @@ uint64
 sys_sigreturn(void)
 {
   struct proc *p=myproc();
-  // acquire(&p->lock);
+  acquire(&p->lock);
   p->nc_ticks=p->alarm_int;
   // p->trapframe->epc=p->backup;
   // p->trapframe->epc=p->trapframe->sp;
   // p->trapframe->sp+=4;
   *(p->trapframe)=*(p->backup);
-  // release(&p->lock);
+  release(&p->lock);
   return p->trapframe->a0;
 }
 
@@ -128,9 +128,11 @@ sys_settickets(void)
   if(p==0)
     return -1;
   int tickets;
+  acquire(&p->lock);
   argint(0,&tickets);
   if(tickets<0)
     return -1;
+  release(&p->lock);
   p->tickets=tickets;
   return 0;
 }

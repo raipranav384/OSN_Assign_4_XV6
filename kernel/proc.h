@@ -109,6 +109,16 @@ struct proc {
   uint64 handler;           // Pointer to the handler function
   uint64 nc_ticks; 
   uint64 c_time;
+  uint64 r_time;
   struct trapframe* backup;            // To reset state
   int tickets;
+  // hold lock maybe??
+  struct proc* next;
+  int que_num;
 };
+
+typedef struct Que{
+  struct proc *head;
+  struct proc *tail;
+  int num_proc;
+}que;

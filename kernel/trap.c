@@ -102,7 +102,13 @@ usertrap(void)
   if(which_dev == 2)
   {
     if(p!=0)
+    {  
       alarm_int(p);
+      acquire(&p->lock);
+      if(p->state==RUNNING)
+        p->r_time++;
+      release(&p->lock);
+    }
     // if()
     if(SCHED==0)
       yield();
@@ -114,9 +120,8 @@ usertrap(void)
       if((p!=0&&p->state!=RUNNING)||p==0)
         yield();
       release(&p->lock);
-
     }
-    else if(SCHED==2)
+    else if(SCHED==2||SCHED==4)
     {
       yield();
     }
