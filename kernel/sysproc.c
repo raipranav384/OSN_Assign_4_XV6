@@ -98,12 +98,12 @@ sys_sigalarm(void)
   argint(0,&n);
   argaddr(1,&fn);
   struct proc *p=myproc();
-  acquire(&p->lock);
+  // acquire(&p->lock);
   p->alarm_int=n;
   // p->handler=(void(*)())fn;
   p->handler=fn;
   p->nc_ticks=n;
-  release(&p->lock);
+  // release(&p->lock);
   return 0;
 }
 
@@ -119,4 +119,18 @@ sys_sigreturn(void)
   *(p->trapframe)=*(p->backup);
   // release(&p->lock);
   return p->trapframe->a0;
+}
+
+uint64 
+sys_settickets(void)
+{
+  struct proc *p=myproc();
+  if(p==0)
+    return -1;
+  int tickets;
+  argint(0,&tickets);
+  if(tickets<0)
+    return -1;
+  p->tickets=tickets;
+  return 0;
 }

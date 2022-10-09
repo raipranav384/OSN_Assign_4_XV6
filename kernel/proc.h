@@ -110,4 +110,5 @@ struct proc {
   uint64 nc_ticks; 
   uint64 c_time;
   struct trapframe* backup;            // To reset state
+  int tickets;
 };

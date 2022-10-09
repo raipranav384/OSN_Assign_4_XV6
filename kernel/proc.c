@@ -150,6 +150,7 @@ found:
   p->handler=0;
   p->nc_ticks=0;
   p->c_time=ticks;
+  p->tickets=1;
   p->backup=(struct trapframe*)kalloc();
   return p;
 }
@@ -325,6 +326,7 @@ fork(void)
 
   acquire(&wait_lock);
   np->parent = p;
+  np->tickets=p->tickets;
   release(&wait_lock);
 
   acquire(&np->lock);
@@ -442,7 +444,16 @@ wait(uint64 addr)
     sleep(p, &wait_lock);  //DOC: wait-sleep
   }
 }
+uint64 rand(uint64 seed)
+{
+  uint64 x=seed,m=1<<31,a=1103515245,c=12345;
 
+  for(int i=0;i<100;i++)
+  {
+    seed=(a*x+c)%m;
+  }
+  return seed;
+}
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -461,7 +472,7 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    uint64 min_ctime=__INT64_MAX__;
+    uint64 min_ctime=__INT64_MAX__,total_tickets=0;
     if(SCHED==1)
     {
       for(p = proc; p < &proc[NPROC]; p++)
@@ -473,6 +484,18 @@ scheduler(void)
           {
             min_ctime=p->c_time;
           }
+        }
+        release(&p->lock);
+      }
+    }
+    else if(SCHED==2)
+    {
+      for(p = proc; p < &proc[NPROC]; p++)
+      {
+        acquire(&p->lock);
+        if(p->state==RUNNABLE)
+        {
+          total_tickets+=p->tickets;
         }
         release(&p->lock);
       }
@@ -500,6 +523,21 @@ scheduler(void)
             p->state = RUNNING;
             c->proc = p;
             swtch(&c->context, &p->context);
+          }
+        }
+        else if(SCHED==2)
+        {
+          uint64 rnum=rand(ticks)%(total_tickets+1);
+          // printf("%d,%d\n",rnum,total_tickets);
+          if(rnum<=p->tickets)
+          {
+            p->state = RUNNING;
+            c->proc = p;
+            swtch(&c->context, &p->context);
+          }
+          else
+          {
+            total_tickets-=rnum;
           }
         }
         // Process is done running for now.

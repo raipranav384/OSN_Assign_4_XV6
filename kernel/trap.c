@@ -106,7 +106,7 @@ usertrap(void)
     // if()
     if(SCHED==0)
       yield();
-    if(SCHED==1)
+    else if(SCHED==1)
     {
       // printf("Reached HERE!!\n");
       // yield();
@@ -115,6 +115,10 @@ usertrap(void)
         yield();
       release(&p->lock);
 
+    }
+    else if(SCHED==2)
+    {
+      yield();
     }
   }
   usertrapret();
