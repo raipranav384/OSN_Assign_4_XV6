@@ -153,8 +153,10 @@ found:
   p->tickets=1;
   p->backup=(struct trapframe*)kalloc();
   p->que_num=-1;
+  p->p_que_num=-1;
   p->next=0;
   p->r_time=0;
+  p->wait_time=0;
   return p;
 }
 
@@ -447,6 +449,27 @@ wait(uint64 addr)
     sleep(p, &wait_lock);  //DOC: wait-sleep
   }
 }
+
+int update_time(void)
+{
+  struct proc * p ;
+  // printf("HERE\n");
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state==RUNNING)
+    {
+      p->r_time++;
+    }
+    if(p->state==RUNNABLE)
+    {
+      // printf("reached here!\n");
+      p->wait_time++;
+    }
+    release(&p->lock);
+  }
+  return 0;
+}
+
 uint64 rand(uint64 seed)
 {
   uint64 x=seed,m=1<<31,a=1103515245,c=12345;
@@ -584,12 +607,27 @@ scheduler(void)
           acquire(&p->lock);
           if(p->state==RUNNABLE)
           {
-            if(p->que_num==-1)
+            if(p->que_num==-1&&p->p_que_num==-1)    // NEW Process
             {
               p->que_num=0;
-              // printf("reached here!, %d, que_num=%d\n",p->state,p->que_num);
-              // printf("num items in current que:%d\n",Qarr[p->que_num]->num_proc);
+              p->p_que_num=0;
               push(Qarr[p->que_num],p);
+            }
+            else if(p->que_num==-1 && p->p_que_num!=-1) // A process which was sleeping earlier
+            {
+              p->que_num=p->p_que_num;
+              push(Qarr[p->que_num],p);
+            }
+            else if(p->que_num!=-1 && p->wait_time > TICK_TIME ) // A process which has aged
+            {
+              p->r_time=0;
+              if(p->que_num>0)
+              {
+                p->wait_time=0;
+                p->que_num--;
+                p->p_que_num=p->que_num;
+                push(Qarr[p->que_num],p);
+              }
             }
             if(p->que_num<i)
             {
@@ -601,24 +639,32 @@ scheduler(void)
         while(Qarr[i]->num_proc>0)
         {
           struct proc* p=Qarr[i]->head;
+          if(p->que_num!=i)
+          {
+            pop(Qarr[i]); // to remove the upgraded process from old que, does not run;
+            continue;
+          }
           acquire(&p->lock);
-          if(p->state==RUNNABLE)
+          if(p->state==RUNNABLE&&(p->r_time<=(1<<p->que_num)))
           {
             p->state=RUNNING;
             c->proc = p;
+            // printf("w_time::%d, max_r_time:%d\n",p->wait_time,(1<<p->que_num));
             swtch(&c->context, &p->context);
             c->proc=0;
           }
-          else
+          else if(p->state!=RUNNABLE)
           {
             pop(Qarr[p->que_num]);
             p->que_num=-1;
           }
-          if(p->state==RUNNABLE&&(p->r_time>1<<p->que_num))
+          else if(p->state==RUNNABLE&&(p->r_time>(1<<p->que_num)))
           {
+            // printf("pushed to end of que!\n");
             pop(Qarr[p->que_num]);
             if(p->que_num<4)
               p->que_num++;
+            p->p_que_num=p->que_num;
             push(Qarr[p->que_num],p);
             p->r_time=0;
           }

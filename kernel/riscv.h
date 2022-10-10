@@ -363,3 +363,5 @@ typedef uint64 *pagetable_t; // 512 PTEs
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
 
 #define PTE_COW 1L<<8 // COW page or not
+
+#define TICK_TIME 64

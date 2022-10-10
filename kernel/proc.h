@@ -115,6 +115,8 @@ struct proc {
   // hold lock maybe??
   struct proc* next;
   int que_num;
+  int p_que_num;
+  int wait_time;
 };
 
 typedef struct Que{

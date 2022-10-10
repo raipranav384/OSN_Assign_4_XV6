@@ -160,11 +160,8 @@ usertrap(void)
     if(p!=0)
     {  
       alarm_int(p);
-      acquire(&p->lock);
-      if(p->state==RUNNING)
-        p->r_time++;
-      release(&p->lock);
     }
+    update_time();
     // if()
     if(SCHED==0)
       yield();
