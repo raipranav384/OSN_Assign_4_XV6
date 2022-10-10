@@ -306,9 +306,10 @@ int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
+  pte_t *c_pte; //pte of child
   uint64 pa, i;
   uint flags;
-  char *mem;
+  // char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -316,14 +317,33 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    // printf("Inside uvmcopy:pa::%x\n",pa);
+    *pte=(*pte)&(~PTE_W);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    // if((mem = kalloc()) == 0)
+    //   goto err;
+    // memmove(mem, (char*)pa, PGSIZE);
+    // if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
+    /*
+    * Instead of allocating pyical memory to new pages, the pte
+    * points to already existing pages of the parent
+    */
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
+      // kfree(mem);
       goto err;
     }
+    make_ref(pa); // Add reference to pa
+    if((c_pte = walk(new, i, 0)) == 0)
+      panic("uvmcopy: pte should exist");
+    if((*c_pte & PTE_V) == 0)
+      panic("uvmcopy: page not present");
+    // DISABLE WRITE FOR GIVEN PAGE_TABLE ENFTRY
+    // *c_pte=(*c_pte)&(~PTE_W);
+    // 8th bit of the pte is unused, use it to check if a page
+    // is shared bw parent and child
+    *pte= (*pte)|(PTE_COW);
+    *c_pte=(*c_pte)|(PTE_COW);
+    
   }
   return 0;
 
@@ -356,8 +376,45 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
+    pte_t* pte=walk(pagetable,va0,0);
+    if(pte==0)
+    {
+      return -1;
+    }
     if(pa0 == 0)
       return -1;
+    // printf("INSIDE copyout(), W_BIT::%d\n",pa0);
+    if(((*pte)&(PTE_COW))!=0)  // It is a COW page
+    {
+      uint64 pa = PTE2PA(*pte);
+      uint flags = PTE_FLAGS(*pte);
+      char* mem;
+      if((mem=kalloc())==0)
+      {
+        return -1;
+      }
+      else
+      {
+
+        // Allocate new page to the faulted PTE if it is sharing a page
+        if(get_ref(pa)>1)
+        {
+          memmove(mem, (char*)pa, PGSIZE);
+          *pte=(*pte)&(~PTE_V);
+          if(mappages(pagetable, va0, PGSIZE, (uint64)mem, flags) != 0){
+            kfree(mem);
+            return -1;
+          // goto err;
+          } 
+          kfree((void*)pa);
+        }
+        // Renable write on the PTE
+        *pte=(*pte)|(PTE_W);
+        *pte=(*pte)&(~(PTE_COW)); // no longer a cow page
+        // REMOVE PTE reference 
+        // if no reference remains, free PTE
+      }
+    }
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
