@@ -597,14 +597,12 @@ scheduler(void)
 
       uint64 min_ctime=__INT64_MAX__,total_tickets=0;
 
-      printf("Sch: %d\n", SCHED);
-
       if (SCHED == 3) //PQBS
       {
         //Variables needed for PQBS
-        // uint64 maxPriority = LONG_MIN;
-        // uint64 maxNumTimesCalled = LONG_MIN;
-        // uint64 minStartTime = __INT64_MAX__;
+        uint64 maxPriority = LONG_MIN;
+        uint64 maxNumTimesCalled = LONG_MIN;
+        uint64 minStartTime = __INT64_MAX__;
         struct proc *highPriorityProcess = 0;
 
         //Order of Comparison: minPriority -> maxNumTimes -> minStartTime
@@ -614,61 +612,54 @@ scheduler(void)
 
           acquire(&p->lock);
 
-          printf("PID: %d\n", p->pid);
-          printf("before upd: \n");
+          // printf("PID: %d\n", p->pid);
+          // printf("before upd: \n");
 
-          printf("nice: %d\n", p->niceness);
-          printf("dyn: %d\n", p->dynPriority);
+          // printf("nice: %d\n", p->niceness);
+          // printf("dyn: %d\n", p->dynPriority);
 
           updateProcessPriorityData(p);
           
-          printf("after upd: \n");
+          // printf("after upd: \n");
 
-          printf("nice: %d\n", p->niceness);
-          printf("dyn: %d\n", p->dynPriority);
-          printf("\n");
+          // printf("nice: %d\n", p->niceness);
+          // printf("dyn: %d\n", p->dynPriority);
+          // printf("\n");
 
           if (p->state == RUNNABLE)
           {
-            printf("%d\n", p->niceness);
-            highPriorityProcess = p;
-
-           
-            
+            // printf("%d\n", p->niceness);
+            highPriorityProcess = p;       
             //compares currProc with prev best stats
-            // if (isHigherPriority(p, maxPriority, maxNumTimesCalled, minStartTime))
-            // if(0)
-            // {
-            //   highPriorityProcess = p;
+            if (isHigherPriority(p, maxPriority, maxNumTimesCalled, minStartTime))
+            {
+              highPriorityProcess = p;
 
-            //   //update best values
-            //   maxPriority = p->priority;
-            //   maxNumTimesCalled = p->numTimes;
-            //   minStartTime = p->c_time;
-            // }
+              //update best values
+              maxPriority = p->priority;
+              maxNumTimesCalled = p->numTimes;
+              minStartTime = p->c_time;
+            }
           }
           release(&p->lock);
         }
 
-        // if (highPriorityProcess != 0)
-        // {
-
-          acquire(&highPriorityProcess->lock);
-
-        if(highPriorityProcess->state == RUNNABLE)
+        if (highPriorityProcess != 0)
         {
-          highPriorityProcess->state = RUNNING;
-          c->proc = highPriorityProcess;
+        
+          acquire(&highPriorityProcess->lock);
+          // printf("reached\n");
+          if(highPriorityProcess->state == RUNNABLE)
+          {
+            highPriorityProcess->state = RUNNING;
+            c->proc = highPriorityProcess;
+            swtch(&c->context, &highPriorityProcess->context);
+            c->proc = 0;
+            highPriorityProcess->numTimes = highPriorityProcess->numTimes + 1;
 
-          swtch(&c->context, &highPriorityProcess->context);
-
-          c->proc = 0;
-          highPriorityProcess->numTimes = highPriorityProcess->numTimes + 1;
-
-        }
-
+          }
           release(&highPriorityProcess->lock);
-        // }
+        }
       }
     else if(SCHED < 3)
     {
