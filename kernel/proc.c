@@ -660,7 +660,6 @@ scheduler(void)
           }
           else if(p->state==RUNNABLE&&(p->r_time>(1<<p->que_num)))
           {
-            // printf("pushed to end of que!\n");
             pop(Qarr[p->que_num]);
             if(p->que_num<4)
               p->que_num++;
