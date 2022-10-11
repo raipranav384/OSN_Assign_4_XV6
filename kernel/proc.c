@@ -700,6 +700,7 @@ scheduler(void)
             {
               p->state = RUNNING;
               c->proc = p;
+              min_ctime=p->c_time;
               swtch(&c->context, &p->context);
             }
           }

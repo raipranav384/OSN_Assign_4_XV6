@@ -112,17 +112,19 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  uint64 pa_idx=(uint64)r/PGSIZE;
-  if(kmem.ref_pa[pa_idx]>=1)
-  {
-    panic("kalloc(): page referenced before alloc()");
-  }
-  else{
+  // if(kmem.ref_pa[pa_idx]>=1)
+  // {
+    // panic("kalloc(): page referenced before alloc()");
+  // }
+  // else{
     // printf("Reached here: pa_idx=%d",pa_idx);
-    kmem.ref_pa[pa_idx]+=1;
-  }
+  // }
+  uint64 pa_idx=(uint64)r/PGSIZE;
   if(r)
+  {
+    kmem.ref_pa[pa_idx]=1;
     kmem.freelist = r->next;
+  }
   release(&kmem.lock);
 
   if(r)
