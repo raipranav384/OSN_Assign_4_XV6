@@ -136,3 +136,18 @@ sys_settickets(void)
   p->tickets=tickets;
   return 0;
 }
+
+uint64 
+sys_setpriority(void)
+{
+  //a0 stores arg0 -> priority
+  //a1 stores arg1 -> pid
+
+  int newPriority = 0;
+  int processPID = 0;
+
+  argint(0, &newPriority);
+  argint(1, &processPID);
+
+  return setpriority(newPriority, processPID);
+}

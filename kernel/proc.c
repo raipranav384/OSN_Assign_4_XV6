@@ -157,6 +157,14 @@ found:
   p->next=0;
   p->r_time=0;
   p->wait_time=0;
+
+  //Initializations for paramaters needed for PBS
+  p->priority = 60;
+  p->niceness = 5;
+  p->numTimes = 0;
+  p->dynPriority = 0;
+  p->runTime = 0;
+  p->sleepTime = 0;
   return p;
 }
 
@@ -459,12 +467,15 @@ int update_time(void)
     if(p->state==RUNNING)
     {
       p->r_time++;
+      p->runTime++;
     }
     if(p->state==RUNNABLE)
     {
       // printf("reached here!\n");
       p->wait_time++;
     }
+    if (p->state == SLEEPING)
+      p->sleepTime++;
     release(&p->lock);
   }
   return 0;
@@ -506,6 +517,65 @@ struct proc* pop(que* Q)
   Q->num_proc--;
   return tmp;
 }
+
+int isHigherPriority(struct proc *p, uint64 maxPri, uint64 maxTimes, uint64 minStart)
+{
+  if (p->priority > maxPri)
+    return 1;
+  else if (p->priority == maxPri)
+  {
+    if (p->numTimes > maxTimes)
+    {
+      return 1;
+    }
+    else if (p->numTimes == maxTimes)
+    {
+      if (p->c_time < minStart)
+      {
+        return 1;
+      }
+
+      return 0;
+    }
+  }
+
+  return 0;
+}
+
+int max(int a, int b)
+{
+  if(a > b)
+    return a;
+
+  return b;
+}
+int min(int a, int b)
+{
+  if(a < b)
+    return a;
+
+  return b;
+}
+
+void updateProcessPriorityData(struct proc *p)
+{
+  int newNiceness;
+  int newDynPriority;
+
+  if(p->runTime + p->sleepTime == 0)
+  {
+    newNiceness = 0;
+  }
+  else
+    newNiceness = (int)(((p->sleepTime) / (p->runTime + p->sleepTime)) * 10);
+  
+  p->niceness = newNiceness;
+
+  newDynPriority = max(0, min(p->priority - newNiceness + 5, 100));
+  p->dynPriority = newDynPriority;
+}
+
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -526,7 +596,83 @@ scheduler(void)
       intr_on();
 
       uint64 min_ctime=__INT64_MAX__,total_tickets=0;
-      if(SCHED==1||SCHED==2)
+
+      printf("Sch: %d\n", SCHED);
+
+      if (SCHED == 3) //PQBS
+      {
+        //Variables needed for PQBS
+        // uint64 maxPriority = LONG_MIN;
+        // uint64 maxNumTimesCalled = LONG_MIN;
+        // uint64 minStartTime = __INT64_MAX__;
+        struct proc *highPriorityProcess = 0;
+
+        //Order of Comparison: minPriority -> maxNumTimes -> minStartTime
+        for (p = proc; p < &proc[NPROC]; p++)
+        {
+        
+
+          acquire(&p->lock);
+
+          printf("PID: %d\n", p->pid);
+          printf("before upd: \n");
+
+          printf("nice: %d\n", p->niceness);
+          printf("dyn: %d\n", p->dynPriority);
+
+          updateProcessPriorityData(p);
+          
+          printf("after upd: \n");
+
+          printf("nice: %d\n", p->niceness);
+          printf("dyn: %d\n", p->dynPriority);
+          printf("\n");
+
+          if (p->state == RUNNABLE)
+          {
+            printf("%d\n", p->niceness);
+            highPriorityProcess = p;
+
+           
+            
+            //compares currProc with prev best stats
+            // if (isHigherPriority(p, maxPriority, maxNumTimesCalled, minStartTime))
+            // if(0)
+            // {
+            //   highPriorityProcess = p;
+
+            //   //update best values
+            //   maxPriority = p->priority;
+            //   maxNumTimesCalled = p->numTimes;
+            //   minStartTime = p->c_time;
+            // }
+          }
+          release(&p->lock);
+        }
+
+        // if (highPriorityProcess != 0)
+        // {
+
+          acquire(&highPriorityProcess->lock);
+
+        if(highPriorityProcess->state == RUNNABLE)
+        {
+          highPriorityProcess->state = RUNNING;
+          c->proc = highPriorityProcess;
+
+          swtch(&c->context, &highPriorityProcess->context);
+
+          c->proc = 0;
+          highPriorityProcess->numTimes = highPriorityProcess->numTimes + 1;
+
+        }
+
+          release(&highPriorityProcess->lock);
+        // }
+      }
+    else if(SCHED < 3)
+    {
+        if(SCHED==1||SCHED==2)
       {
         for(p = proc; p < &proc[NPROC]; p++)
         {
@@ -587,6 +733,7 @@ scheduler(void)
         }
         release(&p->lock);
       }
+    }
     }
   }
   else
@@ -660,6 +807,7 @@ scheduler(void)
           }
           else if(p->state==RUNNABLE&&(p->r_time>(1<<p->que_num)))
           {
+            // printf("pushed to end of que!\n");
             pop(Qarr[p->que_num]);
             if(p->que_num<4)
               p->que_num++;
@@ -701,6 +849,38 @@ sched(void)
   swtch(&p->context, &mycpu()->context);
   mycpu()->intena = intena;
 }
+
+int setpriority(int newPriority, int pid)
+{
+  struct proc *currProc = myproc();
+
+  if (!currProc)
+  {
+    printf("myproc() Error!\n");
+    return -1;
+  }
+
+  for (currProc = proc; currProc < &proc[NPROC]; currProc++)
+  {
+    if (currProc->pid == pid)
+    {
+      //DOUBT: Acq lock only when pid matches OR Smthg else?
+      acquire(&currProc->lock);
+
+      uint oldPriority = currProc->priority;
+
+      currProc->priority = newPriority;
+      currProc->niceness = 5;
+
+      release(&currProc->lock);
+
+      return oldPriority;
+    }
+  }
+  //no processs with pid found
+  return -1;
+}
+
 
 // Give up the CPU for one scheduling round.
 void

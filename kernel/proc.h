@@ -117,6 +117,16 @@ struct proc {
   int que_num;
   int p_que_num;
   int wait_time;
+
+
+  //Attributes needed for Priority Based Scheduling
+  int priority;
+  int dynPriority;
+  int niceness;
+  int numTimes; //number of times process is scheduled by scheduler
+
+  int runTime; 
+  int sleepTime;
 };
 
 typedef struct Que{
