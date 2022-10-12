@@ -125,9 +125,9 @@ struct proc {
   int niceness;
   int numTimes; //number of times process is scheduled by scheduler
 
-  int runTime; 
-  int sleepTime;
-  int endtime;
+  uint64 runTime; 
+  uint64 sleepTime;
+  uint64 endtime;
 };
 
 typedef struct Que{

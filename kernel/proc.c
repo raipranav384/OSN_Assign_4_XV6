@@ -808,6 +808,9 @@ scheduler(void)
           acquire(&p->lock);
           if(p->state==RUNNABLE)
           {
+            //check run time, ticks, p->que_num, pid
+
+
             if(p->que_num==-1&&p->p_que_num==-1)    // NEW Process
             {
               p->que_num=0;
@@ -834,6 +837,15 @@ scheduler(void)
             {
               i=p->que_num;
             }
+            // if(ticks <= p->c_time + 50 && ticks <= 60)
+            // {
+            //   // printf("(%d %d %d %d)\n", p->runTime, ticks, p->que_num, p->pid);
+
+            //   printf("Run Time: %d\n", p->runTime);
+            //   printf("Ticks: %d\n", ticks);
+            //   printf("Queue Number: %d\n", p->que_num);
+            //   printf("Process PID: %d\n\n", p->pid);
+            // }
           }
           release(&p->lock);
         }

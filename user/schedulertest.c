@@ -3,8 +3,8 @@
 #include "user/user.h"
 #include "kernel/fcntl.h"
 
-#define NFORK 10
-#define IO 5
+#define NFORK 5
+#define IO 2
 
 int main()
 {
