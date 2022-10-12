@@ -127,6 +127,7 @@ struct proc {
 
   int runTime; 
   int sleepTime;
+  int endtime;
 };
 
 typedef struct Que{

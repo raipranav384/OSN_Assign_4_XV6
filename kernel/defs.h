@@ -110,6 +110,9 @@ int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             update_time(void);
+//Function Needed for testing scheduling algorithms
+int             waitx(uint64 addr,int* rtime, int* wtime);
+
 //Functions needed for Priority Based Scheduling
 int setpriority(int, int);
 int cow_handler(pagetable_t pagetable,uint64 va0);
