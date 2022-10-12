@@ -112,7 +112,7 @@ void            procdump(void);
 int             update_time(void);
 //Functions needed for Priority Based Scheduling
 int setpriority(int, int);
-
+int cow_handler(pagetable_t pagetable,uint64 va0);
 // swtch.S
 void            swtch(struct context*, struct context*);
 

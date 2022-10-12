@@ -89,68 +89,12 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause()==13||r_scause()==15||r_scause()==12){
-    // check if page fault occured
+  } 
+  else if(r_scause()==15){
     uint64 va=PGROUNDDOWN(r_stval());
-    if(va>=MAXVA)
+    if(cow_handler(p->pagetable,va)<0)
     {
       setkilled(p);
-    }
-    else{
-      pte_t* pte=walk(p->pagetable,va,0);
-      uint64 pa;
-      uint flags;
-      char *mem;
-      if(pte==0)
-      {
-        printf("usertrap(): unexpected pte %p pid=%d\n", r_scause(), p->pid);
-        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-        setkilled(p);
-      }
-      else if(((*pte)&(PTE_COW))==0)
-      {
-        // printf("REACHED!pa::%d::W_bit:%d\n",PTE2PA(*pte),(*pte)&PTE_W);
-        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-        setkilled(p);
-      }
-      else
-      {
-        // If the page is a cow page, then
-        // printf("Reached here also:pa::%d",pa);
-        if((mem=kalloc())==0)
-        {
-          printf("usertrap(): error allocating page\n");
-          setkilled(p);
-        }
-        else
-        {
-          pa = PTE2PA(*pte);
-          // Renable write on the PTE
-          *pte=(*pte)|(PTE_W);
-          *pte=(*pte)&(~(PTE_COW)); // no longer a cow page
-          flags = PTE_FLAGS(*pte);
-          // Allocate new page to the faulted PTE if it is sharing a page
-          // printf("REACHED!pa::%d::W_bit:%d\n",PTE2PA(*pte),(*pte)&PTE_W);
-          // if(get_ref(pa)>1)
-          // {
-            memmove(mem, (char*)pa, PGSIZE);
-            // *pte=(*pte)&(~PTE_V);
-            // uvmunmap(p->pagetable,va,PGSIZE,0);
-            *pte=0L;
-            if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
-              kfree(mem);
-              setkilled(p);
-            // goto err;
-            } 
-            kfree((void*)pa);
-          // }
-
-
-          // REMOVE PTE reference 
-          // if no reference remains, free PTE
-        }
-      }
     }
   }
   else {

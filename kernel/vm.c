@@ -375,53 +375,16 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    if(va0>MAXVA)
+    if(va0>=MAXVA)
       return -1;
     pa0 = walkaddr(pagetable, va0);
-    pte_t* pte=walk(pagetable,va0,0);
-    if(pte==0)
-    {
-      return -1;
-    }
+
     if(pa0 == 0)
       return -1;
     // printf("INSIDE copyout(), W_BIT::%d\n",pa0);
-    if(((*pte)&(PTE_COW))!=0)  // It is a COW page
-    {
-      char* mem;
-      if((mem=kalloc())==0)
-      {
-        return -1;
-      }
-      else
-      {
+    if(cow_handler(pagetable,va0)==-1)
+      return -1;
 
-        uint64 pa = PTE2PA(*pte);
-        // Allocate new page to the faulted PTE if it is sharing a page
-        // if(get_ref(pa)>1)
-        // {
-          memmove(mem, (char*)pa, PGSIZE);
-          *pte=(*pte)|(PTE_W);
-          *pte=(*pte)&(~(PTE_COW)); // no longer a cow page
-          uint flags = PTE_FLAGS(*pte);
-          // *pte=(*pte)&(~PTE_V);
-          *pte=0;
-          // uvmunmap(pagetable,va0,PGSIZE,0);
-
-          kfree((void*)pa);
-          
-          if(mappages(pagetable, va0, PGSIZE, (uint64)mem, flags) != 0){
-            kfree(mem);
-            return -1;
-          // goto err;
-          } 
-        // }
-        // Renable write on the PTE
-
-        // REMOVE PTE reference 
-        // if no reference remains, free PTE
-      }
-    }
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
