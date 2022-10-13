@@ -128,6 +128,9 @@ struct proc {
   uint64 runTime; 
   uint64 sleepTime;
   uint64 endtime;
+
+  //Added mask to store mask of processes to be traced
+  uint64 mask;
 };
 
 typedef struct Que{

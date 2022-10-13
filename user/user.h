@@ -46,3 +46,6 @@ void *memcpy(void *, const void *, uint);
 
 //Priority Scheduling
 int setpriority(int, int);
+
+//strace
+int strace(int);

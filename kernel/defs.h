@@ -197,3 +197,5 @@ void            virtio_disk_intr(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 #define LONG_MIN -2147483647 - 1
+
+uint64 strace(uint64 x);

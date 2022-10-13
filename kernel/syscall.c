@@ -106,6 +106,7 @@ extern uint64 sys_sigreturn(void);
 extern uint64 sys_settickets(void);
 extern uint64 sys_setpriority(void);
 extern uint64 sys_waitx(void);
+extern uint64 sys_strace(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -136,22 +137,99 @@ static uint64 (*syscalls[])(void) = {
 [SYS_settickets] sys_settickets,
 [SYS_setpriority] sys_setpriority,
 [SYS_waitx]   sys_waitx,
+[SYS_strace] sys_strace
+
 };
 
-void
-syscall(void)
+
+//Chang this to syscall.h
+#define MAX_COMMANDS 22
+
+void syscall(void)
 {
   int num;
   struct proc *p = myproc();
 
   num = p->trapframe->a7;
-  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+
+  // for (int i = 0; i < 3; i++)
+
+  // printf("%d\n", p->trapframe->a1);
+  // printf("%d\n", p->trapframe->a2);
+
+  if (num > 0 && num < NELEM(syscalls) && syscalls[num])
+  {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
+
+    //num - index of system call ---> get system call name
+
+    //Spec 1 - Testing
+
+    char *names[MAX_COMMANDS + 1] = {"temp", "fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup", "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close", "strace"};
+    int argCount[MAX_COMMANDS + 1] = {0, 1, 1, 1, 3, 3, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 3, 3, 1, 2, 1, 1, 1};
+
+    //Pranav
+    // if (num != 16)
+    // printf("%d:: :(%d, %d, %d)\n", num, p->trapframe->a0, p->trapframe->a1, p->trapframe->a2);
+
+    // if (num <= MAX_COMMANDS && num != 16)
+    //   printf("%d:: %s :(%d, %d, %d)\n", num, names[num], p->trapframe->a0, p->trapframe->a1, p->trapframe->a2);
+
+    // if (num <= MAX_COMMANDS && num != 16)
+    //   printf("%d: syscall %s (%d, %d, %d)\n", num, names[num], p->trapframe->a0, p->trapframe->a1, p->trapframe->a2);
+
+    //Storing values in reg a0,a1,a2 before funciton is called
+
+    // uint64 processID = p->trapframe->a0;
+    // uint64 name = p->trapframe->a1;
+    // uint64 decimalValue = p->trapframe->a2;
+    uint64 processListMask = p->mask;
+
     p->trapframe->a0 = syscalls[num]();
-  } else {
+    uint64 returnValue = p->trapframe->a0;
+
+    uint64 regData[4];
+    regData[0] = p->trapframe->a0;
+    regData[1] = p->trapframe->a1;
+    regData[2] = p->trapframe->a2;
+
+    if (processListMask & (1 << num))
+    {
+      //numth process is to be traced
+
+      //LEFT: CHECK HOW MANY ARGUMENTS TO BE PRINTED
+      // printf("%d: syscall %s (%d %d %d) -> %d\n", num, names[num], processID, name, decimalValue, returnValue);
+
+      printf("%d: syscall %s (", p->pid, names[num]);
+      for (int i = 0; i < argCount[num]; i++)
+      {
+        printf("%d", regData[i]);
+
+        if (i != argCount[num] - 1)
+          printf(" ");
+      }
+
+      printf(") -> %d\n", returnValue);
+    }
+    //Initial Idea
+
+    // if (num <= MAX_COMMANDS && num != 16)
+    // {
+    //   // checking ith bit is set
+    //   for (int i = 0; i <= MAX_COMMANDS; i++)
+    //   {
+    //     if (num == i && processListMask & (1 << i))
+    //       printf("%d: syscall %s (%d %d %d) -> %d\n", num, names[num], processID, name, decimalValue, returnValue);
+    //   }
+    // }
+    //a0 - registers for arg
+    //a0 -> return value
+  }
+  else
+  {
     printf("%d %s: unknown sys call %d\n",
-            p->pid, p->name, num);
+           p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
 }

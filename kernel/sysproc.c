@@ -175,3 +175,20 @@ sys_waitx(void)
     return -1;
   return ret;
 }
+
+uint64 sys_strace(void)
+{
+  //mask is in a0
+  //strace(arg) -> arg stored in a0, a1,  . . .a7
+  // strace -> sys_strace
+  int procMask;
+  struct proc *p = myproc();
+  argint(0, &procMask);
+  // if (ret < 0)
+  //   return 1;
+
+  p->mask = procMask;
+
+  return 0;
+  //return value of sys_strace is stored in a0
+}
