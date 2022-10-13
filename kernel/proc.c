@@ -558,26 +558,37 @@ uint64 rand(uint64 seed)
 que* init_que()
 {
   que* Q=kalloc();
+  Q->qarr=(struct proc**)kalloc();
   Q->num_proc=0;
   Q->head=0;
-  Q->tail=0;
+  Q->tail=-1;
+  Q->capacity=64;
   return Q;
 }
 void push(que* Q, struct proc *p)
 {
   if(Q->num_proc!=0)
-    Q->tail->next=p;
+  {
+    Q->tail=(Q->tail+1)%(Q->capacity);
+    Q->qarr[Q->tail]=p;
+    // Q->tail->next=p;
+  }
   else
-    Q->head=p;
-  Q->tail=p;
+  {
+    Q->qarr[Q->head]=p;
+    Q->tail=Q->head;
+    // Q->head=p;
+  }
+  // Q->tail=p;
   Q->num_proc++;
 }
 struct proc* pop(que* Q)
 {
   if(Q->num_proc==0)
     return 0;
-  struct proc* tmp=Q->head;
-  Q->head=Q->head->next;
+  struct proc* tmp=Q->qarr[Q->head];
+  // Q->head=Q->head->next;
+  Q->head=(Q->head+1)%(Q->capacity);
   Q->num_proc--;
   return tmp;
 }
@@ -806,82 +817,107 @@ scheduler(void)
       intr_on();
       for(int i=0;i<5;i++)
       {
+        // printf("here1\n");
         for(p = proc; p < &proc[NPROC]; p++) {
           acquire(&p->lock);
           if(p->state==RUNNABLE)
           {
             //check run time, ticks, p->que_num, pid
-
-
             if(p->que_num==-1&&p->p_que_num==-1)    // NEW Process
             {
               p->que_num=0;
               p->p_que_num=0;
+              // printf("[1] PID: %d, QUE_NUM: %d, ticks: %d , r_time=%d\n",p->pid,p->que_num,ticks, p->r_time);
+              // printf("%d,%d,%d\n",p->pid,p->que_num,ticks);
+              
               push(Qarr[p->que_num],p);
             }
-            else if(p->que_num==-1 && p->p_que_num!=-1) // A process which was sleeping earlier
+            else if(p->que_num==-1 && p->p_que_num!=-1&&p->wait_time <= TICK_TIME) // A process which was sleeping earlier
             {
+              // if(p->r_time>(1<<p->que_num))
+              // {
+              //   if(p->p_que_num<4)
+              //     p->p_que_num++;
+              //   p->r_time=0;
+              // }
               p->que_num=p->p_que_num;
+              // printf("[2] PID: %d, QUE_NUM: %d, ticks: %d, r_time=%d\n",p->pid,p->que_num,ticks,p->runTime);
+              // printf("%d,%d,%d\n",p->pid,p->que_num,ticks);
+              
               push(Qarr[p->que_num],p);
             }
-            else if(p->que_num!=-1 && p->wait_time > TICK_TIME ) // A process which has aged
+            else if(p->wait_time > TICK_TIME ) // A process which has aged
             {
               p->r_time=0;
+              p->wait_time=0;
+              p->que_num=p->p_que_num;
               if(p->que_num>0)
               {
-                p->wait_time=0;
                 p->que_num--;
                 p->p_que_num=p->que_num;
+                // printf("%d,%d,%d\n",p->pid,p->que_num,ticks);
                 push(Qarr[p->que_num],p);
               }
             }
-            if(p->que_num<i)
+            if(p->que_num<i&&p->que_num>=0&&Qarr[p->que_num]->num_proc>0)
             {
               i=p->que_num;
             }
-            // if(ticks <= p->c_time + 50 && ticks <= 60)
-            // {
-            //   // printf("(%d %d %d %d)\n", p->runTime, ticks, p->que_num, p->pid);
-
-            //   printf("Run Time: %d\n", p->runTime);
-            //   printf("Ticks: %d\n", ticks);
-            //   printf("Queue Number: %d\n", p->que_num);
-            //   printf("Process PID: %d\n\n", p->pid);
-            // }
           }
           release(&p->lock);
         }
+        // for(int j=0;j<5;j++)
+        // {
+        //   if(Qarr[j]->num_proc>0)
+        //   {
+        //     i=j;
+        //     break;
+        //   }
+        // }
+        // printf("here2\n");
         while(Qarr[i]->num_proc>0)
         {
-          struct proc* p=Qarr[i]->head;
+          // printf("QUE running:%d\n",i);
+          // struct proc* p=Qarr[i]->head;
+          struct proc* p=Qarr[i]->qarr[Qarr[i]->head];
+          acquire(&p->lock);
           if(p->que_num!=i)
           {
             pop(Qarr[i]); // to remove the upgraded process from old que, does not run;
+            release(&p->lock);
             continue;
           }
-          acquire(&p->lock);
-          if(p->state==RUNNABLE&&(p->r_time<=(1<<p->que_num)))
+          if(p->state==RUNNABLE)
           {
-            p->state=RUNNING;
-            c->proc = p;
-            // printf("w_time::%d, max_r_time:%d\n",p->wait_time,(1<<p->que_num));
-            swtch(&c->context, &p->context);
-            c->proc=0;
+            if(p->state==RUNNABLE&&(p->r_time<=(1<<p->que_num)))
+            {
+              p->state=RUNNING;
+              c->proc = p;
+              pop(Qarr[p->que_num]);
+              // printf("w_time::%d, max_r_time:%d\n",p->wait_time,(1<<p->que_num));
+              swtch(&c->context, &p->context);
+
+              // push(Qarr[p->que_num],p);
+              p->p_que_num=p->que_num;
+              p->que_num=-1;
+              c->proc=0;
+            }
+            else if(p->state==RUNNABLE&&(p->r_time>(1<<p->que_num)))
+            {
+              // printf("pushed to next que!\n");
+              pop(Qarr[p->que_num]);
+              if(p->que_num<4)
+                p->que_num++;
+              p->p_que_num=p->que_num;
+              p->que_num=-1;
+              // push(Qarr[p->que_num],p);
+              p->r_time=0;
+            }
           }
-          else if(p->state!=RUNNABLE)
+          else
           {
             pop(Qarr[p->que_num]);
             p->que_num=-1;
-          }
-          else if(p->state==RUNNABLE&&(p->r_time>(1<<p->que_num)))
-          {
-            // printf("pushed to end of que!\n");
-            pop(Qarr[p->que_num]);
-            if(p->que_num<4)
-              p->que_num++;
-            p->p_que_num=p->que_num;
-            push(Qarr[p->que_num],p);
-            p->r_time=0;
           }
           release(&p->lock);
         }

@@ -134,7 +134,11 @@ struct proc {
 };
 
 typedef struct Que{
-  struct proc *head;
-  struct proc *tail;
+  // struct proc *head;
+  int head;
+  // struct proc *tail;
+  int tail;
+  int capacity;
+  struct proc **qarr;
   int num_proc;
 }que;
