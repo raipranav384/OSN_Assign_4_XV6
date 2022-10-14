@@ -24,11 +24,13 @@ Done By
 
 - When timer gets interrupted, if `sigalarm` is enabled, then number of ticks are counted.
 
-- If number of ticks is equal to n, then the interrupt handler function is called.
+- If number of ticks until next call decreases to 0, then the interrupt handler function is called.
+
+- Edited `struct proc` to store ticks until next call
 
 `sigreturn`
 
-- resets the number of ticks 
+- Resets the number of ticks until next call
 
 
 
@@ -36,13 +38,13 @@ Done By
 
 ### a. First Come First Serve FCFS
 
-- Updated `struct proc` to store process is created
+- Updated `struct proc` to store when the process is created
 - Edited `allocproc()` to initialise the new variable created above
 - Modified code in `scheduler()` to pick the process with the earliest time of creation
-
+- No premption of process
 ### b. Lottery Based Scheduling
 
-- Implemented a random function to randomly assign CPU time to a process proportional to the number of tickets in the process
+- Implemented a `rand()`function to randomly assign CPU time to a process proportional to the number of tickets in the process proc struct
 
 ### c. Priority Based Scheduling PBS
 
@@ -88,13 +90,17 @@ Done By
 
 - Created 5 queues, to implement multi level queues that shift processes between  the queues with ageing
 - Created struct Que with following attributes
-  - head Pointer of proc type 
-  - tail Pointer of proc type
+  - head index to the head of Queue
+  - tail index to the tail of Queue
+  - qarr array of struct proc pointers
   - int num_proc
 - (struct proc edits)
 
 - Updated `allocproc() ` to initialize the new structure attirbutes 
-- Updated scheduler() to pick the process with highest priority
+- Updated `scheduler()` to pick the process in front of the queue, in the highest priority process
+- When a sleeping process is encountered, it is popped from the queue it is in, and its previous que_num, i.e `p_que_num` is saved, so that when it becomes runnable again, it is moved back into the same que, as long as it hasn't expired its time slice
+- When a process runs out of time slice, it is popped out of que and moved into the next que
+- If the process has waited for more time that `TICK_TIME` then it is popped from its current que and pushed into a higher que, as long as it is not in que 0. Its run_time is reset as well as wait time
 - Edited `usertrap()` to see if current process has expired its time slice or not
 
 
@@ -113,15 +119,15 @@ to recreate all the object files.
 
 ## Specification 3: Copy-on-write fork
 
-`uvmcopy()` is changed so that every times its called its adds reference to the same physical address without allocating new page.
+`uvmcopy()` is changed so that every times its called in `fork()` its adds reference to the same physical address without allocating new page.
 
-Writing on the page is disabled for both the processes
+Writing on the page is disabled for both the PTEs
 
 Changes Made
 
-- Changed trap.c such that when a write-pagefault is encountered, a page is allocated to the faulting process and write bit is set. 
-- RSW bit is used to check if PTE is pointing to a COW page or not.
-- copyout is edited to handle page fault in a similar manner as to usertrap
+- Changed `trap.c` such that when a write-pagefault(r_scause()==15) is encountered, a page is allocated to the faulting process and write bit is set. 
+- RSW bit (bit 8) is used to check if PTE is pointing to a COW page or not.
+- `copyout()` is edited to handle page fault in a similar manner as to usertrap
 
 
 
@@ -133,7 +139,7 @@ Changes Made
 | First Come First Serve     | 33                   | 80                   |
 | Lottery Based Scheduler    | 32                   | 80                   |
 | Priority Based Scheduler   | 36                   | 81                   |
-| Multi Level Feedback Queue | 32                   | 86                   |
+| Multi Level Feedback Queue | 46                   | 80                   |
 
 
 
