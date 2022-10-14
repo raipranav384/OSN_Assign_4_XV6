@@ -61,6 +61,8 @@ for i in proc:
         plt.plot(i)
 plt.legend(['Process 1', 'Process 2', 'Process 3', 'Process 4', 'Process 5'])
 plt.title(f'MLFQ scheduling:: Age_time:{32}')
+plt.xlabel('ticks')
+plt.ylabel('Queue number')
 plt.show()
     
 

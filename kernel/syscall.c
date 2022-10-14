@@ -143,7 +143,7 @@ static uint64 (*syscalls[])(void) = {
 
 
 //Chang this to syscall.h
-#define MAX_COMMANDS 22
+#define MAX_COMMANDS 27
 
 void syscall(void)
 {
@@ -166,8 +166,8 @@ void syscall(void)
 
     //Spec 1 - Testing
 
-    char *names[MAX_COMMANDS + 1] = {"temp", "fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup", "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close", "strace"};
-    int argCount[MAX_COMMANDS + 1] = {0, 1, 1, 1, 3, 3, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 3, 3, 1, 2, 1, 1, 1};
+    char *names[MAX_COMMANDS + 1] = {"temp", "fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup", "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close", "strace", "sigalarm", "sigreturn", "settickets", "setpriority", "waitx"};
+    int argCount[MAX_COMMANDS + 1] = {0, 1, 1, 1, 3, 3, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 3, 3, 1, 2, 1, 1, 1, 2, 0, 1, 2, 3};
 
     //Pranav
     // if (num != 16)

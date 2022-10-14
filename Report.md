@@ -1,5 +1,10 @@
 # Assignment 4 : Enhancing XV-6
 
+Done By
+
+- Harish Umasankar (2020102067)
+- Pranav Manu (2020112019)
+
 ## Specification 1
 
 ### System Call 1 : `trace`
@@ -120,6 +125,30 @@ Changes Made
 
 
 
+**Timing Analysis**
+
+| Scheduler                  | Average Running Time | Average Waiting Time |
+| -------------------------- | -------------------- | -------------------- |
+| Round Robin                | 40                   | 78                   |
+| First Come First Serve     | 33                   | 80                   |
+| Lottery Based Scheduler    | 32                   | 80                   |
+| Priority Based Scheduler   | 36                   | 81                   |
+| Multi Level Feedback Queue | 32                   | 86                   |
+
+
+
+### Specification 4: MLFQ Analysis
+
+Timeline plot for processes managaed by MLFQ Scheduler
+
+<img src = "MLFQ.png">
+
+
+
+
+
+
+
 ## Running the xv6
 
 - Run the below command in the command line `make qemu SCHEDULER=[OPTIONS]`
@@ -130,5 +159,5 @@ Changes Made
   - PBS for Priority Based Scheduling
   - MLFQ for Multi Level Feedback Queue
 
-- BY default the operating system schedules process based on Round Robin Scheduling
+- By default the operating system schedules process based on Round Robin Scheduling
 
